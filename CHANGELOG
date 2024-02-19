@@ -1,4 +1,8 @@
 
+innoextract 1.11 (2024-02-20)
+ - Added --print-headers
+ - Added --zoom-game-id
+
 innoextract 1.10 (TBD)
  - Added support for a modified Inno Setup 5.3.10 variant
 

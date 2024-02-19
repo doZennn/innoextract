@@ -48,6 +48,8 @@
 #include "cli/gog.hpp"
 #include "cli/goggalaxy.hpp"
 
+#include "cli/zoomplatform.hpp"
+
 #include "crypto/checksum.hpp"
 #include "crypto/hasher.hpp"
 
@@ -673,6 +675,22 @@ bool print_file_info(const extract_options & o, const setup::info & info) {
 			std::cout << '\n';
 		}
 	}
+
+	if(o.zoom_game_id) {
+		std::string id = zoomplatform::get_game_id(info);
+		if(id.empty()) {
+			if(!o.quiet) {
+				std::cout << "No ZOOM-Platform GUID found!\n";
+			}
+		} else if(!o.silent) {
+			std::cout << "ZOOM-Platform GUID is " << color::cyan << id << color::reset << '\n';
+		} else {
+			std::cout << id << '\n';
+		}
+		if((o.silent || !o.quiet) && multiple_sections) {
+			std::cout << '\n';
+		}
+	}
 	
 	if(o.show_password) {
 		if(info.header.options & setup::header::Password) {
@@ -952,7 +970,7 @@ void process_file(const fs::path & installer, const extract_options & o) {
 	if(o.list_languages) {
 		entries |= setup::info::Languages;
 	}
-	if(o.gog_game_id || o.gog) {
+	if(o.gog_game_id || o.gog || o.zoom_game_id) {
 		entries |= setup::info::RegistryEntries;
 	}
 	if(!o.extract_unknown) {
@@ -990,6 +1008,89 @@ void process_file(const fs::path & installer, const extract_options & o) {
 		oss << " ├─ detected setup version: " << info.version << '\n';
 		oss << " └─ error reason: " << e.what();
 		throw format_error(oss.str());
+	}
+
+	if(o.print_headers) {
+		std::cout << if_not_empty("app_name", info.header.app_name);
+		std::cout << if_not_empty("app_versioned_name", info.header.app_versioned_name);
+		std::cout << if_not_empty("app_id", info.header.app_id);
+		std::cout << if_not_empty("app_copyright", info.header.app_copyright);
+		std::cout << if_not_empty("app_publisher", info.header.app_publisher);
+		std::cout << if_not_empty("app_publisher_url", info.header.app_publisher_url);
+		std::cout << if_not_empty("app_support_phone", info.header.app_support_phone);
+		std::cout << if_not_empty("app_support_url", info.header.app_support_url);
+		std::cout << if_not_empty("app_updates_url", info.header.app_updates_url);
+		std::cout << if_not_empty("app_version", info.header.app_version);
+		std::cout << if_not_empty("default_dir_name", info.header.default_dir_name);
+		std::cout << if_not_empty("default_group_name", info.header.default_group_name);
+		std::cout << if_not_empty("uninstall_icon_name", info.header.uninstall_icon_name);
+		std::cout << if_not_empty("base_filename", info.header.base_filename);
+		std::cout << if_not_empty("uninstall_files_dir", info.header.uninstall_files_dir);
+		std::cout << if_not_empty("uninstall_name", info.header.uninstall_name);
+		std::cout << if_not_empty("uninstall_icon", info.header.uninstall_icon);
+		std::cout << if_not_empty("app_mutex", info.header.app_mutex);
+		std::cout << if_not_empty("default_user_name", info.header.default_user_name);
+		std::cout << if_not_empty("default_user_organisation", info.header.default_user_organisation);
+		std::cout << if_not_empty("default_serial", info.header.default_serial);
+		std::cout << if_not_empty("app_readme_file", info.header.app_readme_file);
+		std::cout << if_not_empty("app_contact", info.header.app_contact);
+		std::cout << if_not_empty("app_comments", info.header.app_comments);
+		std::cout << if_not_empty("app_modify_path", info.header.app_modify_path);
+		std::cout << if_not_empty("create_uninstall_registry_key", info.header.create_uninstall_registry_key);
+		std::cout << if_not_empty("uninstallable", info.header.uninstallable);
+		std::cout << if_not_empty("license_text", info.header.license_text);
+		std::cout << if_not_empty("info_before", info.header.info_before);
+		std::cout << if_not_empty("info_after", info.header.info_after);
+		std::cout << if_not_empty("uninstaller_signature", info.header.uninstaller_signature);
+		std::cout << if_not_empty("compiled_code", info.header.compiled_code);
+		
+		std::cout << if_not_zero("lead_bytes", info.header.lead_bytes);
+		
+		std::cout << if_not_zero("language_count", info.header.language_count);
+		std::cout << if_not_zero("message_count", info.header.message_count);
+		std::cout << if_not_zero("permission_count", info.header.permission_count);
+		std::cout << if_not_zero("type_count", info.header.type_count);
+		std::cout << if_not_zero("component_count", info.header.component_count);
+		std::cout << if_not_zero("task_count", info.header.task_count);
+		std::cout << if_not_zero("directory_count", info.header.directory_count);
+		std::cout << if_not_zero("file_count", info.header.file_count);
+		std::cout << if_not_zero("data_entry_count", info.header.data_entry_count);
+		std::cout << if_not_zero("icon_count", info.header.icon_count);
+		std::cout << if_not_zero("ini_entry_count", info.header.ini_entry_count);
+		std::cout << if_not_zero("registry_entry_count", info.header.registry_entry_count);
+		std::cout << if_not_zero("delete_entry_count", info.header.delete_entry_count);
+		std::cout << if_not_zero("uninstall_delete_entry_count", info.header.uninstall_delete_entry_count);
+		std::cout << if_not_zero("run_entry_count", info.header.run_entry_count);
+		std::cout << if_not_zero("uninstall_run_entry_count", info.header.uninstall_run_entry_count);
+		
+		std::cout << std::hex;
+		std::cout << if_not_zero("back_color", info.header.back_color);
+		std::cout << if_not_zero("back_color2", info.header.back_color2);
+		std::cout << if_not_zero("image_back_color", info.header.image_back_color);
+		std::cout << if_not_zero("small_image_back_color", info.header.small_image_back_color);
+		std::cout << std::dec;
+		
+		std::cout << if_not_zero("extra_disk_space_required", info.header.extra_disk_space_required);
+		std::cout << if_not_zero("slices_per_disk", info.header.slices_per_disk);
+		
+		std::cout << if_not_equal("install_mode", info.header.install_mode, setup::header::NormalInstallMode);
+		std::cout << "uninstall_log_mode: " << info.header.uninstall_log_mode << '\n';
+		std::cout << "uninstall_style: " << info.header.uninstall_style << '\n';
+		std::cout << "dir_exists_warning: " << info.header.dir_exists_warning << '\n';
+		std::cout << if_not_equal("privileges_required", info.header.privileges_required, setup::header::NoPrivileges);
+		std::cout << "show_language_dialog: " << info.header.show_language_dialog << '\n';
+		std::cout << if_not_equal("language_detection", info.header.language_detection, setup::header::NoLanguageDetection);
+		std::cout << "compression: " << info.header.compression << '\n';
+		std::cout << "architectures_allowed: " << info.header.architectures_allowed << '\n';
+		std::cout << "architectures_installed_in_64bit_mode: " << info.header.architectures_installed_in_64bit_mode << '\n';
+		
+		std::cout << "disable_dir_page: " << info.header.disable_dir_page << '\n';
+		std::cout << "disable_program_group_page: " << info.header.disable_program_group_page << '\n';
+		
+		std::cout << if_not_zero("uninstall_display_size", info.header.uninstall_display_size);
+		
+		std::cout << "options: " << info.header.options << '\n';
+		return;
 	}
 	
 	if(o.gog_galaxy && (o.list || o.test || o.extract || o.list_languages)) {

@@ -65,6 +65,7 @@ struct extract_options {
 	bool extract; //!< Extract files
 	bool list_languages; //!< List available languages
 	bool gog_game_id; //!< Show the GOG.com game id
+	bool zoom_game_id; //!< Show the ZOOM-Platform game GUID
 	bool show_password; //!< Show password check information
 	bool check_password; //!< Abort if the provided password is incorrect
 	
@@ -73,6 +74,7 @@ struct extract_options {
 	
 	bool gog; //!< Try to extract additional archives used in GOG.com installers
 	bool gog_galaxy; //!< Try to re-assemble GOG Galaxy files
+	bool print_headers; //!< Print setup headers
 	
 	bool extract_unknown; //!< Try to extract unknown Inno Setup versions
 	
@@ -109,6 +111,7 @@ struct extract_options {
 		, local_timestamps(false)
 		, gog(false)
 		, gog_galaxy(false)
+		, print_headers(false)
 		, extract_unknown(false)
 		, extract_temp(false)
 		, language_only(false)

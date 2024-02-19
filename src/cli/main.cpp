@@ -138,9 +138,11 @@ int main(int argc, char * argv[]) {
 		("info,i", "Print information about the installer")
 		("list-languages", "List languages supported by the installer")
 		("gog-game-id", "Determine the installer's GOG.com game ID")
+		("zoom-game-id", "Determine the installer's ZOOM-Platform GUID")
 		("show-password", "Show password check information")
 		("check-password", "Abort if the password is incorrect")
 		("data-version,V", "Only print the data version")
+		("print-headers", "Print headers")
 		#ifdef DEBUG
 		("dump-headers", "Dump decompressed setup headers")
 		#endif
@@ -262,15 +264,18 @@ int main(int argc, char * argv[]) {
 	o.test = (options.count("test") != 0);
 	o.list_languages = (options.count("list-languages") != 0);
 	o.gog_game_id = (options.count("gog-game-id") != 0);
+	o.zoom_game_id = (options.count("zoom-game-id") != 0);
+	o.print_headers = (options.count("print-headers") != 0);
 	o.show_password = (options.count("show-password") != 0);
 	o.check_password = (options.count("check-password") != 0);
 	if(options.count("info") != 0) {
 		o.list_languages = true;
 		o.gog_game_id = true;
+		o.zoom_game_id = true;
 		o.show_password = true;
 	}
 	bool explicit_action = o.list || o.test || o.extract || o.list_languages
-	                       || o.gog_game_id || o.show_password || o.check_password;
+	                       || o.gog_game_id || o.show_password || o.check_password || o.zoom_game_id;
 	if(!explicit_action) {
 		o.extract = true;
 	}
