@@ -96,3 +96,4 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         artifacts: "build/innoextract.tar.gz,innoextract-upx.tar.gz"
+        allowUpdates: true
