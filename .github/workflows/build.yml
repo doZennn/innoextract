@@ -95,5 +95,5 @@ jobs:
       if: github.ref_type == 'tag'
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "build/innoextract.tar.gz,innoextract-upx.tar.gz"
+        artifacts: "build/innoextract.tar.gz,build/innoextract-upx.tar.gz"
         allowUpdates: true
