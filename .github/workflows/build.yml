@@ -1,0 +1,98 @@
+# Makes build a static linux binary
+# Always uses the latest zlib and bz2, boost version should be set manually via the BOOST_VERSION env var
+# Releases are only made when a commit is tagged
+name: Build static linux
+
+on:
+  push:
+    tags:
+      - '*'
+    branches:
+      - master
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+  BOOST_VERSION: 1.84.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup workflow vars
+      run: |
+        echo "BOOST_VER_UNDERSCORES=$(echo $BOOST_VERSION | sed 's/\./_/g')" >> "$GITHUB_ENV"
+
+    - name: Create build dirs
+      run: mkdir -p build
+
+    - name: Build zlib
+      run: |
+        cd build
+        wget -q https://www.zlib.net/current/zlib.tar.gz
+        tar xzf zlib.tar.gz
+        rm zlib.tar.gz
+        cd zlib-*
+        ./configure --static
+        make -j$(nproc)
+
+    - name: Build bzip2
+      run: |
+        cd build
+        wget -q https://sourceware.org/pub/bzip2/bzip2-latest.tar.gz
+        tar xzf bzip2-latest.tar.gz
+        rm bzip2-latest.tar.gz
+        cd bzip2-*
+        make bzip2
+
+    - name: Build boost
+      run: |
+        cd build
+        wget -q "https://boostorg.jfrog.io/artifactory/main/release/$BOOST_VERSION/source/boost_$BOOST_VER_UNDERSCORES.tar.gz"
+        tar xzf "boost_$BOOST_VER_UNDERSCORES.tar.gz"
+        rm boost_$BOOST_VER_UNDERSCORES.tar.gz
+        cd "boost_$BOOST_VER_UNDERSCORES"
+        ./bootstrap.sh
+        ZLIB_BINARY=../zlib-*/libz
+        ZLIB_SOURCE=../zlib-*/
+        BZIP2_SOURCE=../bzip2-*/
+        ./b2 link=static variant=release --with-iostreams --with-filesystem --with-date_time --with-system --with-program_options
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DUSE_STATIC_LIBS=ON -DBoost_INCLUDE_DIR=build/boost_$BOOST_VER_UNDERSCORES
+
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+        strip innoextract
+        cp innoextract innoextract-upx
+
+    - name: Pack a version with UPX
+      uses: crazy-max/ghaction-upx@v3
+      with:
+        files: build/innoextract-upx
+
+    - name: Pack files
+      run: |
+        cd build
+        chmod +x innoextract
+        chmod +x innoextract-upx
+        tar -cvzf innoextract.tar.gz innoextract
+        tar -cvzf innoextract-upx.tar.gz innoextract-upx
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: innoextract
+        path: build/innoextract*.tar.gz
+
+    - name: Make release
+      if: github.ref_type == 'tag'
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: "build/innoextract.tar.gz,innoextract-upx.tar.gz"
