@@ -51,6 +51,12 @@ STORED_ENUM_MAP(stored_log_mode, header::AppendLog,
 	header::OverwriteLog
 );
 
+STORED_ENUM_MAP(stored_light_control_styling, header::All,
+	header::All,
+	header::AllButButtons,
+	header::OnlyRequired
+);
+
 STORED_ENUM_MAP(stored_setup_style, header::ClassicStyle,
 	header::ClassicStyle,
 	header::ModernStyle
@@ -282,6 +288,20 @@ void header::load(std::istream & is, const version & version) {
 	} else {
 		seven_zip_library_name.clear();
 	}
+	if(version >= INNO_VERSION(6, 7, 0)) {
+		std::string tmp;
+		is >> util::binary_string(use_previous_app_dir);
+		is >> util::binary_string(use_previous_group);
+		is >> util::binary_string(use_previous_setup_type);
+		is >> util::binary_string(use_previous_tasks);
+		is >> util::binary_string(use_previous_user_info);
+	} else {
+		use_previous_app_dir.clear();
+		use_previous_group.clear();
+		use_previous_setup_type.clear();
+		use_previous_tasks.clear();
+		use_previous_user_info.clear();
+	}
 	if(version >= INNO_VERSION(5, 2, 5)) {
 		is >> util::ansi_string(license_text);
 		is >> util::ansi_string(info_before);
@@ -403,7 +423,17 @@ void header::load(std::istream & is, const version & version) {
 		image_alpha_format = AlphaIgnored;
 	}
 
-	if(version >= INNO_VERSION(6, 6, 0)) {
+	if(version >= INNO_VERSION(6, 7, 0)) {
+		image_back_color = util::load<boost::uint32_t>(is, version.bits());
+		small_image_back_color = util::load<boost::uint32_t>(is, version.bits());
+		back_color = util::load<boost::uint32_t>(is, version.bits());
+		image_back_color2 = util::load<boost::uint32_t>(is, version.bits());
+		small_image_back_color2 = util::load<boost::uint32_t>(is, version.bits());
+		back_color2 = util::load<boost::uint32_t>(is, version.bits());
+		image_opacity = util::load<boost::uint8_t>(is, version.bits());
+		back_image_opacity = util::load<boost::uint8_t>(is, version.bits());
+		wizard_light_control_styling = stored_enum<stored_light_control_styling>(is).get();
+	} else if(version >= INNO_VERSION(6, 6, 0)) {
 		image_back_color = util::load<boost::uint32_t>(is, version.bits());
 		small_image_back_color = util::load<boost::uint32_t>(is, version.bits());
 		image_back_color2 = util::load<boost::uint32_t>(is, version.bits());
@@ -565,6 +595,12 @@ void header::load(std::istream & is, const version & version) {
 	}
 	
 	options |= load_flags(is, version);
+	if(version >= INNO_VERSION(6, 7, 0)) {
+		// Inno forces the TSetupHeaderOption enum to be 8 bytes,
+		// but currently only contains 6 bytes of values
+		(void)util::load<boost::uint8_t>(is);
+		(void)util::load<boost::uint8_t>(is);
+	}
 	
 	if(version < INNO_VERSION(3, 0, 4)) {
 		privileges_required = (options & AdminPrivilegesRequired) ? AdminPriviliges : NoPrivileges;
@@ -664,19 +700,20 @@ header::flags header::load_flags(std::istream & is, const version & version) {
 	if(version >= INNO_VERSION(1, 3, 0) && version < INNO_VERSION(5, 3, 8)) {
 		flagreader.add(CreateUninstallRegKey);
 	}
-	if(version >= INNO_VERSION(1, 3, 1)) {
+	if(version >= INNO_VERSION(1, 3, 1) && version < INNO_VERSION(6, 7, 0)) {
 		flagreader.add(UsePreviousAppDir);
 	}
 	if(version >= INNO_VERSION(1, 3, 3) && version < INNO_VERSION_EXT(6, 4, 0, 1)) {
 		flagreader.add(BackColorHorizontal);
 	}
-	if(version >= INNO_VERSION(1, 3, 10)) {
+	if(version >= INNO_VERSION(1, 3, 10) && version < INNO_VERSION(6, 7, 0)) {
 		flagreader.add(UsePreviousGroup);
 	}
 	if(version >= INNO_VERSION(1, 3, 20)) {
 		flagreader.add(UpdateUninstallLogAppName);
 	}
-	if(version >= INNO_VERSION(2, 0, 0) || (version.is_isx() && version >= INNO_VERSION(1, 3, 10))) {
+	if((version >= INNO_VERSION(2, 0, 0) || (version.is_isx() && version >= INNO_VERSION(1, 3, 10)))
+		&& version < INNO_VERSION(6, 7, 0)) {
 		flagreader.add(UsePreviousSetupType);
 	}
 	if(version >= INNO_VERSION(2, 0, 0)) {
@@ -684,7 +721,9 @@ header::flags header::load_flags(std::istream & is, const version & version) {
 		flagreader.add(AlwaysShowComponentsList);
 		flagreader.add(FlatComponentsList);
 		flagreader.add(ShowComponentSizes);
-		flagreader.add(UsePreviousTasks);
+		if(version < INNO_VERSION(6, 7, 0)) {
+			flagreader.add(UsePreviousTasks);
+		}
 		flagreader.add(DisableReadyPage);
 	}
 	if(version >= INNO_VERSION(2, 0, 7)) {
@@ -699,7 +738,9 @@ header::flags header::load_flags(std::istream & is, const version & version) {
 	}
 	if(version >= INNO_VERSION(3, 0, 0)) {
 		flagreader.add(UserInfoPage);
-		flagreader.add(UsePreviousUserInfo);
+		if(version < INNO_VERSION(6, 7, 0)) {
+			flagreader.add(UsePreviousUserInfo);
+		}
 	}
 	if(version >= INNO_VERSION(3, 0, 1)) {
 		flagreader.add(UninstallRestartComputer);
@@ -769,11 +810,19 @@ header::flags header::load_flags(std::istream & is, const version & version) {
 	if(version >= INNO_VERSION(6, 3, 0)) {
 		flagreader.add(UninstallLogging);
 	}
+
 	if(version >= INNO_VERSION(6, 6, 0)) {
 		flagreader.add(WizardModern);
 		flagreader.add(WizardBorderStyled);
 		flagreader.add(WizardKeepAspectRatio);
+	}
+	if(version >= INNO_VERSION(6, 6, 0) && version < INNO_VERSION(6, 7, 0)) {
 		flagreader.add(WizardLightButtonsUnstyled);
+	}
+
+	if(version >= INNO_VERSION(6, 7, 0)) {
+		flagreader.add(RedirectionGuard);
+		flagreader.add(WizardBevelsHidden);
 	}
 	
 	return flagreader.finalize();
@@ -868,8 +917,13 @@ NAMES(setup::header::flags, "Setup Option",
 	"force close applications",
 	"app name_has_consts",
 	"use_previous_privileges",
-	"wizard_resizable",
 	"uninstall_logging",
+	"wizard_modern",
+	"wizard_border_styled",
+	"wizard_keep_aspect_ratio",
+	"redirection_guard",
+	"wizard_bevels_hidden",
+
 	"uninstallable",
 	"disable dir page",
 	"disable program group page",
@@ -885,6 +939,7 @@ NAMES(setup::header::flags, "Setup Option",
 	"overwrite uninst reg entries",
 	"encrypted",
 	"wizard_light_buttons_unstyled",
+	"wizard_resizable",
 )
 
 NAMES(setup::header::architecture_types, "Architecture",
@@ -917,6 +972,12 @@ NAMES(setup::header::log_mode, "Uninstall Log Mode",
 	"append",
 	"new log",
 	"overwrite",
+)
+
+NAMES(setup::header::light_control_styling, "Light Control Styling",
+	"all",
+	"all but buttons",
+	"only required",
 )
 
 NAMES(setup::header::style, "Style",

@@ -171,12 +171,16 @@ block_reader::pointer block_reader::get(std::istream & base, const setup::versio
 	crypto::crc32 actual_checksum;
 	actual_checksum.init();
 	
-	boost::uint32_t stored_size;
+	boost::uint64_t stored_size;
 	block_compression compression;
 	
 	if(version >= INNO_VERSION(4, 0, 9)) {
 		
-		stored_size = actual_checksum.load<boost::uint32_t>(base);
+		if(version >= INNO_VERSION(6, 7, 0)) {
+			stored_size = actual_checksum.load<boost::uint64_t>(base);
+		} else {
+			stored_size = actual_checksum.load<boost::uint32_t>(base);
+		}
 		boost::uint8_t compressed = actual_checksum.load<boost::uint8_t>(base);
 		
 	#ifdef DEBUG
@@ -197,7 +201,7 @@ block_reader::pointer block_reader::get(std::istream & base, const setup::versio
 		}
 		
 		// Add the size of a CRC32 checksum for each 4KiB subblock.
-		stored_size += boost::uint32_t(util::ceildiv<boost::uint64_t>(stored_size, 4096) * 4);
+		stored_size += util::ceildiv<boost::uint64_t>(stored_size, 4096) * 4;
 	}
 	
 	if(actual_checksum.finalize() != expected_checksum) {
@@ -221,7 +225,7 @@ block_reader::pointer block_reader::get(std::istream & base, const setup::versio
 	
 	fis->push(inno_block_filter(), 4096);
 	
-	fis->push(io::restrict(base, 0, stored_size));
+	fis->push(io::restrict(base, 0, static_cast<boost::uint32_t>(stored_size)));
 	
 	fis->exceptions(std::ios_base::badbit | std::ios_base::failbit);
 	

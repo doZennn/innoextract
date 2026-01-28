@@ -228,6 +228,13 @@ void file_entry::load(std::istream & is, const info & i) {
 	}
 	
 	options |= flagreader.finalize();
+	if(i.version >= INNO_VERSION(6, 7, 0)) {
+		// Inno forces the TSetupFileEntryOption enum to be 8 bytes,
+		// but currently only contains 5 bytes of values
+		(void)util::load<boost::uint8_t>(is);
+		(void)util::load<boost::uint8_t>(is);
+		(void)util::load<boost::uint8_t>(is);
+	}
 	
 	if(i.version.bits() == 16 || i.version >= INNO_VERSION(5, 0, 0)) {
 		type = stored_enum<stored_file_type_0>(is).get();

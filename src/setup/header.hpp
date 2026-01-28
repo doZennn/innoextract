@@ -99,8 +99,12 @@ struct header {
 		ForceCloseApplications,
 		AppNameHasConsts,
 		UsePreviousPrivileges,
-		WizardResizable,
 		UninstallLogging,
+		WizardModern,
+		WizardBorderStyled,
+		WizardKeepAspectRatio,
+		RedirectionGuard,
+		WizardBevelsHidden,
 		
 		// Obsolete flags
 		Uninstallable,
@@ -117,7 +121,8 @@ struct header {
 		BackSolid,
 		OverwriteUninstRegEntries,
 		EncryptionUsed,
-		WizardLightButtonsUnstyled
+		WizardLightButtonsUnstyled,
+		WizardResizable
 		
 	);
 	
@@ -170,6 +175,11 @@ struct header {
 	std::string architectures_installed_in_64bit_mode_expr;
 	std::string close_applications_filter_excludes;
 	std::string seven_zip_library_name;
+	std::string use_previous_app_dir;
+	std::string use_previous_group;
+	std::string use_previous_setup_type;
+	std::string use_previous_tasks;
+	std::string use_previous_user_info;
 	std::string license_text;
 	std::string info_before;
 	std::string info_after;
@@ -202,7 +212,17 @@ struct header {
 	Color back_color;
 	Color back_color2;
 	Color image_back_color;
+	Color image_back_color2;
 	Color small_image_back_color;
+	Color small_image_back_color2;
+	uint8_t image_opacity;
+	uint8_t back_image_opacity;
+	enum light_control_styling {
+		All,
+		AllButButtons,
+		OnlyRequired,
+	};
+	light_control_styling wizard_light_control_styling;
 	
 	enum style {
 		ClassicStyle,
@@ -307,6 +327,7 @@ NAMED_FLAGS(setup::header::privileges_required_overrides)
 NAMED_ENUM(setup::header::alpha_format)
 NAMED_ENUM(setup::header::install_verbosity)
 NAMED_ENUM(setup::header::log_mode)
+NAMED_ENUM(setup::header::light_control_styling)
 NAMED_ENUM(setup::header::style)
 NAMED_ENUM(setup::header::dark_style)
 NAMED_ENUM(setup::header::auto_bool)

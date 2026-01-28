@@ -113,11 +113,21 @@ void load_wizard_and_decompressor(std::istream & is, const setup::version & vers
 		load_wizard_images(is, version, info.wizard_images_small, entries);
 	}
 
+	if(version >= INNO_VERSION(6, 7, 0))
+	{
+		load_wizard_images(is, version, info.wizard_images_back, entries);
+	}
+
 	// Duplicated dark mode versions
 	// TODO: figure out some way of specifying this
 	if(version >= INNO_VERSION(6, 6, 0)) {
 		load_wizard_images(is, version, info.wizard_images, entries);
 		load_wizard_images(is, version, info.wizard_images_small, entries);
+	}
+
+	if(version >= INNO_VERSION(6, 7, 0))
+	{
+		load_wizard_images(is, version, info.wizard_images_back, entries);
 	}
 	
 	info.decompressor_dll.clear();
