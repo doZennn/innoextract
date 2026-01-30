@@ -179,11 +179,11 @@ block_reader::pointer block_reader::get(std::istream & base, const setup::versio
 		stored_size = actual_checksum.load<boost::uint32_t>(base);
 		boost::uint8_t compressed = actual_checksum.load<boost::uint8_t>(base);
 		
-#ifdef DEBUG
+	#ifdef DEBUG
 		debug("" << (version.is_64bit() ? "64 bit offsets" : "32 bit offsets"));
 		debug("read stored_size: " << print_hex(stored_size) << " (" << stored_size << " bytes)");
 		debug("compressed flag: " <<  print_hex(boost::uint32_t(compressed)));
-#endif
+	#endif
 		compression = compressed ? (version >= INNO_VERSION(4, 1, 6) ? LZMA1 : Zlib) : Stored;
 	} else {
 		

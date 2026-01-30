@@ -57,7 +57,7 @@ void data_entry::load(std::istream & is, const info & i) {
 	}
 
 	if(i.version >= INNO_VERSION(6, 5, 2)) {
-		chunk.sort_offset = chunk.offset = util::load<boost::int64_t>(is);
+		chunk.sort_offset = chunk.offset = util::load<boost::uint64_t>(is);
 	} else {
 		chunk.sort_offset = chunk.offset = util::load<boost::uint32_t>(is);
 	}

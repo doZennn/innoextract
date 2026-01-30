@@ -710,7 +710,7 @@ header::flags header::load_flags(std::istream & is, const version & version) {
 		flagreader.add(AppendDefaultDirName);
 		flagreader.add(AppendDefaultGroupName);
 	}
-	if(version >= INNO_VERSION(4, 2, 2)) {
+	if(version >= INNO_VERSION(4, 2, 2) && version < INNO_VERSION(6, 5, 0)) {
 		flagreader.add(EncryptionUsed);
 	}
 	if(version >= INNO_VERSION(5, 0, 4) && version < INNO_VERSION(5, 6, 1)) {
@@ -830,7 +830,6 @@ NAMES(setup::header::flags, "Setup Option",
 	"wizard image stretch",
 	"append default dir name",
 	"append default group name",
-	"encrypted",
 	"changes environment",
 	"show undisplayable languages",
 	"setup logging",
@@ -858,6 +857,7 @@ NAMES(setup::header::flags, "Setup Option",
 	"disable dir exists warning",
 	"back solid",
 	"overwrite uninst reg entries",
+	"encrypted",
 )
 
 NAMES(setup::header::architecture_types, "Architecture",

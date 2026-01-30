@@ -39,6 +39,7 @@
 #include "setup/icon.hpp"
 #include "setup/ini.hpp"
 #include "setup/item.hpp"
+#include "setup/issigkey.hpp"
 #include "setup/language.hpp"
 #include "setup/message.hpp"
 #include "setup/permission.hpp"
@@ -159,7 +160,7 @@ void info::try_load(std::istream & is, entry_types entries, util::codepage_id fo
 	debug("loading main header");
 	header.load(*reader, version);
 	
-	debug("loading languages");
+	debug("loading " << header.language_count << " languages");
 	load_entries(*reader, entries, header.language_count, languages, Languages);
 	
 	debug("determining encoding");
@@ -193,39 +194,36 @@ void info::try_load(std::istream & is, entry_types entries, util::codepage_id fo
 		load_wizard_and_decompressor(*reader, version, header, *this, entries);
 	}
 	
-	debug("loading messages");
+	debug("loading " << header.message_count << " messages");
 	load_entries(*reader, entries, header.message_count, messages, Messages);
-	debug("loading permissions");
+	debug("loading " << header.permission_count << " permissions");
 	load_entries(*reader, entries, header.permission_count, permissions, Permissions);
-	debug("loading types");
+	debug("loading " << header.type_count << " types");
 	load_entries(*reader, entries, header.type_count, types, Types);
-	debug("loading components");
+	debug("loading " << header.component_count << " components");
 	load_entries(*reader, entries, header.component_count, components, Components);
-	debug("loading tasks");
+	debug("loading " << header.task_count << " tasks");
 	load_entries(*reader, entries, header.task_count, tasks, Tasks);
-	debug("loading directories");
+	debug("loading " << header.directory_count << " directories");
 	load_entries(*reader, entries, header.directory_count, directories, Directories);
-	debug("slipping issig keys");
-	for(size_t i = 0; i < header.issig_key_count; i++) {
-		issig_key_entry entry;
-		entry.load(*reader, *this);
-	}
-	debug("loading files");
+	debug("loading " << header.issig_key_count << " issigs");
+	load_entries(*reader, entries, header.issig_key_count, issig_keys, ISSigs);
+	debug("loading " << header.file_count << " files");
 	load_entries(*reader, entries, header.file_count, files, Files);
-	debug("loading icons");
+	debug("loading " << header.icon_count << " icons");
 	load_entries(*reader, entries, header.icon_count, icons, Icons);
-	debug("loading ini entries");
+	debug("loading " << header.ini_entry_count << " ini entries");
 	load_entries(*reader, entries, header.ini_entry_count, ini_entries, IniEntries);
-	debug("loading registry entries");
+	debug("loading " << header.registry_entry_count << " registry entries");
 	load_entries(*reader, entries, header.registry_entry_count, registry_entries, RegistryEntries);
-	debug("loading delete entries");
+	debug("loading " << header.delete_entry_count << " delete entries");
 	load_entries(*reader, entries, header.delete_entry_count, delete_entries, DeleteEntries);
-	debug("loading uninstall delete entries");
+	debug("loading " << header.uninstall_delete_entry_count << " uninstall delete entries");
 	load_entries(*reader, entries, header.uninstall_delete_entry_count, uninstall_delete_entries,
 	             UninstallDeleteEntries);
-	debug("loading run entries");
+	debug("loading " << header.run_entry_count << " run entries");
 	load_entries(*reader, entries, header.run_entry_count, run_entries, RunEntries);
-	debug("loading uninstall run entries");
+	debug("loading " << header.uninstall_run_entry_count << " uninstall run entries");
 	load_entries(*reader, entries, header.uninstall_run_entry_count, uninstall_run_entries,
 	             UninstallRunEntries);
 	
@@ -245,47 +243,11 @@ void info::try_load(std::istream & is, entry_types entries, util::codepage_id fo
 }
 
 void info::load(std::istream & is, entry_types entries, util::codepage_id force_codepage,
-				boost::uint32_t loader_revision) {
+                boost::uint32_t loader_revision) {
 
 	version.load(is);
 	if(loader_revision == 2 && version >= INNO_VERSION(6, 5, 0)) {
 		version.set_64bit();
-	}
-
-	if(version >= INNO_VERSION(6, 5, 0)) {
-		boost::uint32_t eh_expected_crc = util::load<boost::uint32_t>(is);
-
-		encryption_header eh;
-		if(is.read(reinterpret_cast<char*>(&eh), sizeof(eh)).fail()) {
-			throw std::runtime_error("failed to read encryption header");
-		}
-
-		crypto::crc32 eh_crc;
-		eh_crc.init();
-		eh_crc.update(reinterpret_cast<const char*>(&eh), sizeof(eh));
-		if(eh_crc.finalize() != eh_expected_crc) {
-			//throw std::runtime_error("encryption header CRC mismatch");
-		}
-
-		if(eh.encryption_use == 2) {
-			throw std::runtime_error("full encryption mode is not supported");
-		}
-
-		if(eh.encryption_use == 1) {
-			header.password.type = crypto::PBKDF2_SHA256_XChaCha20;
-			header.password_salt.resize(44);
-			std::memcpy(&header.password_salt[0], eh.kdf_salt, 16);
-			util::little_endian::store<boost::uint32_t>(
-				boost::uint32_t(eh.kdf_iterations), &header.password_salt[16]
-			);
-			std::memcpy(&header.password_salt[20], &eh.base_nonce, sizeof(eh.base_nonce));
-
-			std::memcpy(header.password.sha256, &eh.password_test, 4);
-		} else {
-			header.password.type = crypto::None;
-			header.password_salt.clear();
-			std::memset(header.password.sha256, 0, 4);
-		}
 	}
 
 	if(!version.known) {
@@ -309,6 +271,31 @@ void info::load(std::istream & is, entry_types entries, util::codepage_id force_
 		entries |= NoSkip;
 	}
 	
+	if(version >= INNO_VERSION(6, 5, 0)) {
+		boost::uint32_t expected_encryption_crc = util::load<boost::uint32_t>(is);
+		crypto::crc32 checksum;
+		checksum.init();
+		boost::uint8_t encryption_use = checksum.load<boost::uint8_t>(is);
+		if(encryption_use != 0) {
+			log_error << "Unsupported encrypted setup";
+		}
+
+		for(int i = 0; i < 16; i++) {
+		    /* KDFSalt */(void)checksum.load<boost::uint8_t>(is);
+		}
+		/* KDFIterations */(void)checksum.load<boost::uint32_t>(is);
+		/* BaseNonce.RandomXorStartOffset */(void)checksum.load<boost::uint64_t>(is);
+		/* BaseNonce.RandomXorFirstSlice */(void)checksum.load<boost::uint32_t>(is);
+		for(int i = 0; i < 3; i++) {
+			/* BaseNonce.RemainingRandom */(void)checksum.load<boost::uint32_t>(is);
+		}
+		/* PasswordTest */(void)checksum.load<boost::uint32_t>(is);
+
+		if(checksum.finalize() != expected_encryption_crc) {
+			log_warning << "Encryption header checksum mismatch!";
+		}
+	}
+
 	bool parsed_without_errors = false;
 	std::streampos start = is.tellg();
 	for(;;) {

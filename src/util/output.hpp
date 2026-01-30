@@ -73,7 +73,7 @@ inline std::ostream & operator<<(std::ostream & os, const if_not_empty & s) {
 	if(s.value.length() > 100) {
 		color::shell_command prev = color::current;
 		return os << s.name << ": " << color::white << s.value.length() << prev
-				  << " bytes" << '\n';
+		          << " bytes" << '\n';
 	} else if(!s.value.empty()) {
 		return os << s.name << ": " << quoted(s.value) << '\n';
 	} else {
@@ -191,8 +191,7 @@ struct print_hex_dump {
 	size_t start_offset;
 	size_t bytes_per_line;
 	
-	explicit print_hex_dump(const char * buffer, size_t length, 
-							size_t offset = 0, size_t width = 16) 
+	explicit print_hex_dump(const char * buffer, size_t length, size_t offset = 0, size_t width = 16)
 		: data(buffer), size(length), start_offset(offset), bytes_per_line(width) { }
 	
 };
@@ -236,13 +235,11 @@ inline std::ostream & operator<<(std::ostream & os, const print_hex_dump & s) {
 
 } // namespace detail
 
-inline detail::print_hex_dump print_hex_dump(
-		const char * data, size_t size, size_t offset = 0, size_t width = 16) {
+inline detail::print_hex_dump print_hex_dump(const char * data, size_t size, size_t offset = 0, size_t width = 16) {
 	return detail::print_hex_dump(data, size, offset, width);
 }
 
-inline detail::print_hex_dump print_hex_dump(
-		const std::string & data, size_t offset = 0, size_t width = 16) {
+inline detail::print_hex_dump print_hex_dump(const std::string & data, size_t offset = 0, size_t width = 16) {
 	return print_hex_dump(data.c_str(), data.size(), offset, width);
 }
 

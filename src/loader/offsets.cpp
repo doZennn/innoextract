@@ -219,8 +219,8 @@ bool offsets::load_offsets_at(std::istream & is, boost::uint32_t pos) {
 		boost::uint32_t actual = checksum.finalize();
 		if(actual != expected) {
 			log_warning << "Setup loader checksum mismatch! Expected: "
-						<< print_hex(expected) 
-						<< " Actual: " << print_hex(actual);
+			            << print_hex(expected)
+			            << " Actual: " << print_hex(actual);
 		}
 	}
 	

@@ -147,7 +147,7 @@ bool slice_reader::open_file(const path_type & file) {
 		
 		slice_size = boost::uint32_t(slice_size_64);
 		
-		if(std::streampos(slice_size_64) > file_size) {
+		if(slice_size_64 > boost::uint64_t(file_size)) {
 			ifs.close();
 			std::ostringstream oss;
 			oss << "bad slice size in " << file << ": " << slice_size_64 << " > " << file_size;
@@ -247,7 +247,7 @@ void slice_reader::open(size_t slice) {
 	throw slice_error(oss.str());
 }
 
-bool slice_reader::seek(size_t slice, boost::uint32_t offset) {
+bool slice_reader::seek(size_t slice, boost::uint64_t offset) {
 	
 	seek(slice);
 	
@@ -257,7 +257,7 @@ bool slice_reader::seek(size_t slice, boost::uint32_t offset) {
 		return false;
 	}
 	
-	if(is->seekg(offset).fail()) {
+	if(is->seekg(std::streamoff(offset)).fail()) {
 		return false;
 	}
 	

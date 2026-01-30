@@ -29,6 +29,11 @@
 namespace setup {
 
 namespace {
+STORED_ENUM_MAP(stored_file_verification_type, file_entry::fvNone,
+	file_entry::fvNone,
+	file_entry::fvHash,
+	file_entry::fvISSig,
+);
 
 enum file_copy_mode {
 	cmNormal,
@@ -59,6 +64,14 @@ STORED_ENUM_MAP(stored_file_type_1, file_entry::UserFile,
 } // anonymous namespace
 
 } // namespace setup
+
+NAMED_ENUM(setup::file_entry::file_verification_type)
+
+NAMES(setup::file_entry::file_verification_type, "File Verification Type",
+	"none",
+	"hash",
+	"IS sig",
+)
 
 NAMED_ENUM(setup::file_copy_mode)
 
@@ -92,26 +105,25 @@ void file_entry::load(std::istream & is, const info & i) {
 	
 	load_condition_data(is, i);
 	
-    if(i.version >= INNO_VERSION(6, 5, 0)) {
-        is >> util::encoded_string(excludes, i.codepage, i.header.lead_bytes);
-        is >> util::encoded_string(download_issig_source, i.codepage, i.header.lead_bytes);
-        is >> util::encoded_string(download_user_name, i.codepage, i.header.lead_bytes);
-        is >> util::encoded_string(download_password, i.codepage, i.header.lead_bytes);
-        is >> util::encoded_string(extract_archive_password, i.codepage, i.header.lead_bytes);
-        
-        // Verification structure
-        std::string issig_allowed_keys;
-        is >> util::ansi_string(issig_allowed_keys);
-        char hash[32];
-        is.read(hash, 32);
-        boost::uint8_t verification_type = util::load<boost::uint8_t>(is);
-    } else {
-        excludes.clear();
-        download_issig_source.clear();
-        download_user_name.clear();
-        download_password.clear();
-        extract_archive_password.clear();
-    }
+	if(i.version >= INNO_VERSION(6, 5, 0)) {
+		is >> util::encoded_string(excludes, i.codepage, i.header.lead_bytes);
+		is >> util::encoded_string(download_issig_source, i.codepage, i.header.lead_bytes);
+		is >> util::encoded_string(download_user_name, i.codepage, i.header.lead_bytes);
+		is >> util::encoded_string(download_password, i.codepage, i.header.lead_bytes);
+		is >> util::encoded_string(extract_archive_password, i.codepage, i.header.lead_bytes);
+
+		// Verification structure
+		is >> util::ansi_string(issig_allowed_keys);
+		is.read(checksum.sha256, std::streamsize(sizeof(checksum.sha256)));
+		checksum.type = crypto::SHA256;
+		verification = stored_enum<stored_file_verification_type>(is).get();
+	} else {
+		excludes.clear();
+		download_issig_source.clear();
+		download_user_name.clear();
+		download_password.clear();
+		extract_archive_password.clear();
+	}
 	
 	load_version_data(is, i.version);
 	

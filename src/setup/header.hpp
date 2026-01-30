@@ -87,7 +87,6 @@ struct header {
 		WizardImageStretch,
 		AppendDefaultDirName,
 		AppendDefaultGroupName,
-		EncryptionUsed,
 		ChangesEnvironment,
 		ShowUndisplayableLanguages,
 		SetupLogging,
@@ -116,7 +115,8 @@ struct header {
 		DetectLanguageUsingLocale,
 		DisableDirExistsWarning,
 		BackSolid,
-		OverwriteUninstRegEntries
+		OverwriteUninstRegEntries,
+		EncryptionUsed
 		
 	);
 	
