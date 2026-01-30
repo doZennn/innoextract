@@ -156,13 +156,13 @@ block_reader::pointer block_reader::get(std::istream & base, const setup::versio
 	USE_ENUM_NAMES(block_compression)
 	
 #ifdef DEBUG
-	std::streampos current_pos = base.tellg();
+	std::streamoff current_pos = base.tellg();
 	char dump_buffer[128];
 	std::streamsize bytes_read = base.read(dump_buffer, sizeof(dump_buffer)).gcount();
 	base.clear();
 	
 	debug("block header at offset " << print_hex(current_pos) << ":");
-	debug(print_hex_dump(dump_buffer, bytes_read, current_pos));
+	debug(print_hex_dump(dump_buffer, std::size_t(bytes_read), std::size_t(current_pos)));
 
 	base.seekg(current_pos);
 #endif
