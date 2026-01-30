@@ -56,6 +56,12 @@ STORED_ENUM_MAP(stored_setup_style, header::ClassicStyle,
 	header::ModernStyle
 );
 
+STORED_ENUM_MAP(stored_setup_dark_style, header::LightStyle,
+	header::LightStyle,
+	header::DarkStyle,
+	header::DynamicStyle
+);
+
 STORED_ENUM_MAP(stored_bool_auto_no_yes, header::Auto,
 	header::Auto,
 	header::No,
@@ -365,6 +371,7 @@ void header::load(std::istream & is, const version & version) {
 	} else {
 		back_color2 = 0;
 	}
+	// added again in 6.6, see below
 	if(version < INNO_VERSION(5, 5, 7)) {
 		image_back_color = util::load<boost::uint32_t>(is);
 	} else {
@@ -376,10 +383,14 @@ void header::load(std::istream & is, const version & version) {
 		small_image_back_color = 0;
 	}
 	
-	if(version >= INNO_VERSION(6, 0, 0)) {
+	if(version >= INNO_VERSION(6, 6, 0)) {
+		wizard_resize_percent_x = util::load<boost::uint32_t>(is, version.bits());
+		wizard_resize_percent_y = util::load<boost::uint32_t>(is, version.bits());
+		wizard_dark_style = stored_enum<stored_setup_dark_style>(is).get();
+	} else if(version >= INNO_VERSION(6, 0, 0)) {
 		wizard_style = stored_enum<stored_setup_style>(is).get();
-		wizard_resize_percent_x = util::load<boost::uint32_t>(is);
-		wizard_resize_percent_y = util::load<boost::uint32_t>(is);
+		wizard_resize_percent_x = util::load<boost::uint32_t>(is, version.bits());
+		wizard_resize_percent_y = util::load<boost::uint32_t>(is, version.bits());
 	} else {
 		wizard_style = ClassicStyle;
 		wizard_resize_percent_x = 0;
@@ -390,6 +401,13 @@ void header::load(std::istream & is, const version & version) {
 		image_alpha_format = stored_enum<stored_alpha_format>(is).get();
 	} else {
 		image_alpha_format = AlphaIgnored;
+	}
+
+	if(version >= INNO_VERSION(6, 6, 0)) {
+		image_back_color = util::load<boost::uint32_t>(is, version.bits());
+		small_image_back_color = util::load<boost::uint32_t>(is, version.bits());
+		image_back_color2 = util::load<boost::uint32_t>(is, version.bits());
+		small_image_back_color2 = util::load<boost::uint32_t>(is, version.bits());
 	}
 	
 	if(version >= INNO_VERSION(6, 5, 0)) {
@@ -744,10 +762,18 @@ header::flags header::load_flags(std::istream & is, const version & version) {
 	if(version >= INNO_VERSION(6, 0, 0)) {
 		flagreader.add(AppNameHasConsts);
 		flagreader.add(UsePreviousPrivileges);
+	}
+	if(version >= INNO_VERSION(6, 0, 0) && version < INNO_VERSION(6, 6, 0)) {
 		flagreader.add(WizardResizable);
 	}
 	if(version >= INNO_VERSION(6, 3, 0)) {
 		flagreader.add(UninstallLogging);
+	}
+	if(version >= INNO_VERSION(6, 6, 0)) {
+		flagreader.add(WizardModern);
+		flagreader.add(WizardBorderStyled);
+		flagreader.add(WizardKeepAspectRatio);
+		flagreader.add(WizardLightButtonsUnstyled);
 	}
 	
 	return flagreader.finalize();
@@ -858,6 +884,7 @@ NAMES(setup::header::flags, "Setup Option",
 	"back solid",
 	"overwrite uninst reg entries",
 	"encrypted",
+	"wizard_light_buttons_unstyled",
 )
 
 NAMES(setup::header::architecture_types, "Architecture",
@@ -895,6 +922,12 @@ NAMES(setup::header::log_mode, "Uninstall Log Mode",
 NAMES(setup::header::style, "Style",
 	"classic",
 	"modern",
+)
+
+NAMES(setup::header::dark_style, "DarkStyle",
+	"light",
+	"dark",
+	"dynamic",
 )
 
 NAMES(setup::header::auto_bool, "Auto Boolean",

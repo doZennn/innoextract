@@ -112,6 +112,13 @@ void load_wizard_and_decompressor(std::istream & is, const setup::version & vers
 	if(version >= INNO_VERSION(2, 0, 0) || version.is_isx()) {
 		load_wizard_images(is, version, info.wizard_images_small, entries);
 	}
+
+	// Duplicated dark mode versions
+	// TODO: figure out some way of specifying this
+	if(version >= INNO_VERSION(6, 6, 0)) {
+		load_wizard_images(is, version, info.wizard_images, entries);
+		load_wizard_images(is, version, info.wizard_images_small, entries);
+	}
 	
 	info.decompressor_dll.clear();
 	if(header.compression == stream::BZip2
