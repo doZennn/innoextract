@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-toolchain
+            base-devel
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-boost
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-bzip2
+            mingw-w64-x86_64-xz
+
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          cmake -G"MSYS Makefiles" \
+            -DUSE_LTO=OFF \
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUSE_STATIC_LIBS=ON \
+            -DBUILD_SHARED_LIBS=OFF ..
+          mingw32-make -j8
+          strip innoextract.exe
+
+      - name: Find and Copy Required DLLs
+        run: |
+          mkdir release
+          cp build/innoextract.exe release/
+
+          echo "Checking for missing DLL dependencies..."
+          ldd release/innoextract.exe | grep "not found" || true
+
+          echo "Copying necessary DLLs..."
+          for dll in $(ldd release/innoextract.exe | grep mingw64 | awk '{print $3}'); do
+            cp -v "$dll" release/ || true
+          done
+
+          echo "Final dependency check..."
+          ldd release/innoextract.exe | grep "not found" || true
+
+      - name: Package Binaries
+        shell: pwsh
+        run: |
+          $VERSION = if ($env:GITHUB_REF -match '^refs/tags/(.+)') { $matches[1] } else { 'dev' }
+          $ZIP_NAME = "innoextract$VERSION.zip"
+
+          Set-Location release
+          7z a "..\$ZIP_NAME" *
+
+          echo "UPLOAD_FILE=$ZIP_NAME" >> $env:GITHUB_ENV
+
+          $TAG = $VERSION
+          if ($TAG.Length -ge 3) {
+            $X = $TAG[0]
+            $Y = $TAG[1]
+            $Z = $TAG[2]
+            $INNO_VERSION = "$X.$Y.$Z"
+          } else {
+            $INNO_VERSION = "dev"
+          }
+
+          echo "INNO_VERSION=$INNO_VERSION" >> $env:GITHUB_ENV
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        #if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: Windows version
+          body: Latest innoextract Windows x64 build with support of Inno Setup installers up to version ${{ env.INNO_VERSION }}
+          files: ${{ env.UPLOAD_FILE }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false

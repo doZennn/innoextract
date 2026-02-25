@@ -26,6 +26,11 @@
 
 #include <boost/foreach.hpp>
 
+#include "crypto/hasher.hpp"
+#include "crypto/pbkdf2.hpp"
+#include "crypto/sha256.hpp"
+#include "crypto/xchacha20.hpp"
+#include "crypto/crc32.hpp"
 #include "setup/component.hpp"
 #include "setup/data.hpp"
 #include "setup/delete.hpp"
@@ -34,6 +39,7 @@
 #include "setup/icon.hpp"
 #include "setup/ini.hpp"
 #include "setup/item.hpp"
+#include "setup/issigkey.hpp"
 #include "setup/language.hpp"
 #include "setup/message.hpp"
 #include "setup/permission.hpp"
@@ -42,6 +48,7 @@
 #include "setup/task.hpp"
 #include "setup/type.hpp"
 #include "stream/block.hpp"
+#include "util/endian.hpp"
 #include "util/fstream.hpp"
 #include "util/load.hpp"
 #include "util/log.hpp"
@@ -105,6 +112,23 @@ void load_wizard_and_decompressor(std::istream & is, const setup::version & vers
 	if(version >= INNO_VERSION(2, 0, 0) || version.is_isx()) {
 		load_wizard_images(is, version, info.wizard_images_small, entries);
 	}
+
+	if(version >= INNO_VERSION(6, 7, 0))
+	{
+		load_wizard_images(is, version, info.wizard_images_back, entries);
+	}
+
+	// Duplicated dark mode versions
+	// TODO: figure out some way of specifying this
+	if(version >= INNO_VERSION(6, 6, 0)) {
+		load_wizard_images(is, version, info.wizard_images, entries);
+		load_wizard_images(is, version, info.wizard_images_small, entries);
+	}
+
+	if(version >= INNO_VERSION(6, 7, 0))
+	{
+		load_wizard_images(is, version, info.wizard_images_back, entries);
+	}
 	
 	info.decompressor_dll.clear();
 	if(header.compression == stream::BZip2
@@ -119,7 +143,7 @@ void load_wizard_and_decompressor(std::istream & is, const setup::version & vers
 	}
 	
 	info.decrypt_dll.clear();
-	if(header.options & header::EncryptionUsed) {
+	if((header.options & header::EncryptionUsed) && version < INNO_VERSION(6, 4, 0)) {
 		if(entries & (info::DecryptDll | info::NoSkip)) {
 			is >> util::binary_string(info.decrypt_dll);
 		} else {
@@ -153,7 +177,7 @@ void info::try_load(std::istream & is, entry_types entries, util::codepage_id fo
 	debug("loading main header");
 	header.load(*reader, version);
 	
-	debug("loading languages");
+	debug("loading " << header.language_count << " languages");
 	load_entries(*reader, entries, header.language_count, languages, Languages);
 	
 	debug("determining encoding");
@@ -187,34 +211,36 @@ void info::try_load(std::istream & is, entry_types entries, util::codepage_id fo
 		load_wizard_and_decompressor(*reader, version, header, *this, entries);
 	}
 	
-	debug("loading messages");
+	debug("loading " << header.message_count << " messages");
 	load_entries(*reader, entries, header.message_count, messages, Messages);
-	debug("loading permissions");
+	debug("loading " << header.permission_count << " permissions");
 	load_entries(*reader, entries, header.permission_count, permissions, Permissions);
-	debug("loading types");
+	debug("loading " << header.type_count << " types");
 	load_entries(*reader, entries, header.type_count, types, Types);
-	debug("loading components");
+	debug("loading " << header.component_count << " components");
 	load_entries(*reader, entries, header.component_count, components, Components);
-	debug("loading tasks");
+	debug("loading " << header.task_count << " tasks");
 	load_entries(*reader, entries, header.task_count, tasks, Tasks);
-	debug("loading directories");
+	debug("loading " << header.directory_count << " directories");
 	load_entries(*reader, entries, header.directory_count, directories, Directories);
-	debug("loading files");
+	debug("loading " << header.issig_key_count << " issigs");
+	load_entries(*reader, entries, header.issig_key_count, issig_keys, ISSigs);
+	debug("loading " << header.file_count << " files");
 	load_entries(*reader, entries, header.file_count, files, Files);
-	debug("loading icons");
+	debug("loading " << header.icon_count << " icons");
 	load_entries(*reader, entries, header.icon_count, icons, Icons);
-	debug("loading ini entries");
+	debug("loading " << header.ini_entry_count << " ini entries");
 	load_entries(*reader, entries, header.ini_entry_count, ini_entries, IniEntries);
-	debug("loading registry entries");
+	debug("loading " << header.registry_entry_count << " registry entries");
 	load_entries(*reader, entries, header.registry_entry_count, registry_entries, RegistryEntries);
-	debug("loading delete entries");
+	debug("loading " << header.delete_entry_count << " delete entries");
 	load_entries(*reader, entries, header.delete_entry_count, delete_entries, DeleteEntries);
-	debug("loading uninstall delete entries");
+	debug("loading " << header.uninstall_delete_entry_count << " uninstall delete entries");
 	load_entries(*reader, entries, header.uninstall_delete_entry_count, uninstall_delete_entries,
 	             UninstallDeleteEntries);
-	debug("loading run entries");
+	debug("loading " << header.run_entry_count << " run entries");
 	load_entries(*reader, entries, header.run_entry_count, run_entries, RunEntries);
-	debug("loading uninstall run entries");
+	debug("loading " << header.uninstall_run_entry_count << " uninstall run entries");
 	load_entries(*reader, entries, header.uninstall_run_entry_count, uninstall_run_entries,
 	             UninstallRunEntries);
 	
@@ -233,10 +259,14 @@ void info::try_load(std::istream & is, entry_types entries, util::codepage_id fo
 	check_is_end(reader, "unknown data at end of secondary header stream");
 }
 
-void info::load(std::istream & is, entry_types entries, util::codepage_id force_codepage) {
-	
+void info::load(std::istream & is, entry_types entries, util::codepage_id force_codepage,
+                boost::uint32_t loader_revision) {
+
 	version.load(is);
-	
+	if(loader_revision == 2 && version >= INNO_VERSION(6, 5, 0)) {
+		version.set_64bit();
+	}
+
 	if(!version.known) {
 		if(entries & NoUnknownVersion) {
 			std::ostringstream oss;
@@ -258,6 +288,31 @@ void info::load(std::istream & is, entry_types entries, util::codepage_id force_
 		entries |= NoSkip;
 	}
 	
+	if(version >= INNO_VERSION(6, 5, 0)) {
+		boost::uint32_t expected_encryption_crc = util::load<boost::uint32_t>(is);
+		crypto::crc32 checksum;
+		checksum.init();
+		boost::uint8_t encryption_use = checksum.load<boost::uint8_t>(is);
+		if(encryption_use != 0) {
+			log_error << "Unsupported encrypted setup";
+		}
+
+		for(int i = 0; i < 16; i++) {
+		    /* KDFSalt */(void)checksum.load<boost::uint8_t>(is);
+		}
+		/* KDFIterations */(void)checksum.load<boost::uint32_t>(is);
+		/* BaseNonce.RandomXorStartOffset */(void)checksum.load<boost::uint64_t>(is);
+		/* BaseNonce.RandomXorFirstSlice */(void)checksum.load<boost::uint32_t>(is);
+		for(int i = 0; i < 3; i++) {
+			/* BaseNonce.RemainingRandom */(void)checksum.load<boost::uint32_t>(is);
+		}
+		/* PasswordTest */(void)checksum.load<boost::uint32_t>(is);
+
+		if(checksum.finalize() != expected_encryption_crc) {
+			log_warning << "Encryption header checksum mismatch!";
+		}
+	}
+
 	bool parsed_without_errors = false;
 	std::streampos start = is.tellg();
 	for(;;) {
@@ -309,6 +364,76 @@ void info::load(std::istream & is, entry_types entries, util::codepage_id force_
 			ambiguous = version.is_ambiguous();
 			
 		}
+		
+	}
+	
+}
+
+std::string info::get_key(const std::string & password) {
+	
+	std::string encoded_password;
+	util::from_utf8(password, encoded_password, codepage);
+	
+	if(header.password.type == crypto::PBKDF2_SHA256_XChaCha20) {
+		
+		#if INNOEXTRACT_HAVE_DECRYPTION
+		
+		// 16 bytes PBKDF2 salt + 4 bytes PBKDF2 iterations + 24 bytes ChaCha20 base nonce
+		if(header.password_salt.length() != 20 + crypto::xchacha20::nonce_size) {
+			throw std::runtime_error("unexpected password salt size");
+		}
+		
+		std::string result;
+		result.resize(crypto::xchacha20::key_size + crypto::xchacha20::nonce_size);
+		typedef crypto::pbkdf2<crypto::sha256> pbkdf2;
+		pbkdf2::derive(encoded_password.c_str(), encoded_password.length(), &header.password_salt[0], 16,
+		               util::little_endian::load<boost::uint32_t>(&header.password_salt[16]), &result[0],
+		               crypto::xchacha20::key_size);
+		
+		std::memcpy(&result[crypto::xchacha20::key_size], &header.password_salt[20],
+		            crypto::xchacha20::nonce_size);
+		
+		return result;
+		
+		#endif
+		
+	}
+	
+	return encoded_password;
+}
+
+bool info::check_key(const std::string & key) {
+	
+	if(header.password.type == crypto::PBKDF2_SHA256_XChaCha20) {
+		
+		#if INNOEXTRACT_HAVE_DECRYPTION
+		
+		if(key.length() != crypto::xchacha20::key_size + crypto::xchacha20::nonce_size) {
+			throw std::runtime_error("unexpected key size");
+		}
+		
+		crypto::xchacha20 cipher;
+		
+		char nonce[crypto::xchacha20::nonce_size];
+		std::memcpy(nonce, key.c_str() + crypto::xchacha20::key_size, crypto::xchacha20::nonce_size);
+		*reinterpret_cast<boost::uint32_t *>(nonce + 8) = ~*reinterpret_cast<boost::uint32_t *>(nonce + 8);
+		cipher.init(key.c_str(), nonce);
+		
+		char buffer[] = { 0, 0, 0, 0 };
+		cipher.crypt(buffer, buffer, sizeof(buffer));
+		
+		return (std::memcmp(buffer, header.password.check, sizeof(buffer)) == 0);
+		
+		#else
+		throw std::runtime_error("XChaCha20 decryption not supported in this build");
+		#endif
+		
+	} else {
+		
+		crypto::hasher checksum(header.password.type);
+		checksum.update(header.password_salt.c_str(), header.password_salt.length());
+		checksum.update(key.c_str(), key.length());
+		return (checksum.finalize() == header.password);
 		
 	}
 	

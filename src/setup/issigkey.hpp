@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2015 Daniel Scharrer
+ * Copyright (C) 2011-2025 Daniel Scharrer
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the author(s) be held liable for any damages
@@ -18,41 +18,24 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-/*!
- * \file
- *
- * MD5 hashing routines.
- */
-#ifndef INNOEXTRACT_CRYPTO_MD5_HPP
-#define INNOEXTRACT_CRYPTO_MD5_HPP
+#ifndef INNOEXTRACT_SETUP_ISSIGKEY_HPP
+#define INNOEXTRACT_SETUP_ISSIGKEY_HPP
 
-#include <boost/cstdint.hpp>
+#include <string>
+#include <iosfwd>
 
-#include "crypto/iteratedhash.hpp"
-#include "util/endian.hpp"
+namespace setup {
 
-namespace crypto {
+struct info;
 
-class md5_transform {
-	
-public:
-	
-	typedef boost::uint32_t hash_word;
-	typedef util::little_endian byte_order;
-	enum constants {
-		offset = 0,
-		block_size = 64,
-		hash_size = 16,
-	};
-	
-	static void init(hash_word * state);
-	
-	static void transform(hash_word * state, const hash_word * data);
-	
+struct issig_key_entry {
+    std::string public_x;
+    std::string public_y;
+    std::string runtime_id;
+    
+    void load(std::istream & is, const info & i);
 };
 
-typedef iterated_hash<md5_transform> md5;
+} // namespace setup
 
-} // namespace crypto
-
-#endif // INNOEXTRACT_CRYPTO_MD5_HPP
+#endif // INNOEXTRACT_SETUP_ISSIGKEY_HPP

@@ -38,11 +38,18 @@ struct windows_language {
 	boost::uint16_t language_id;
 	boost::uint16_t codepage;
 	
-	bool operator<(boost::uint32_t language) const {
-		return language_id < language;
-	}
-	
 };
+
+bool operator<(windows_language language, boost::uint32_t language_id) {
+	return language.language_id < language_id;
+}
+
+#if defined(__clang_major__) && __clang_major__ < 8 && defined(_LIBCPP_DEBUG)
+// Required for debug builds with Clang < 8
+bool operator<(boost::uint32_t language_id, windows_language language) {
+	return language_id < language.language_id;
+}
+#endif
 
 /*
  * Sorted list of Windows language IDs with their default ANSI codepages.
@@ -133,9 +140,19 @@ void language_entry::load(std::istream & is, const info & i) {
 	}
 	
 	is >> util::binary_string(dialog_font);
-	is >> util::binary_string(title_font);
+	// if(i.version < INNO_VERSION(6, 6, 0)) {
+	if(i.version <= INNO_VERSION(6, 6, 0)) {
+		is >> util::binary_string(title_font);
+	} else {
+		title_font.clear();
+	}
 	is >> util::binary_string(welcome_font);
-	is >> util::binary_string(copyright_font);
+	// if(i.version < INNO_VERSION(6, 6, 0)) {
+	if(i.version <= INNO_VERSION(6, 6, 0)) {
+		is >> util::binary_string(copyright_font);
+	} else {
+		copyright_font.clear();
+	}
 	
 	if(i.version >= INNO_VERSION(4, 0, 0)) {
 		is >> util::binary_string(data);
@@ -149,7 +166,11 @@ void language_entry::load(std::istream & is, const info & i) {
 		license_text.clear(), info_before.clear(), info_after.clear();
 	}
 	
-	language_id = util::load<boost::uint32_t>(is);
+	if(i.version < INNO_VERSION(6, 6, 0)) {
+		language_id = util::load<boost::uint32_t>(is);
+	} else {
+		language_id = util::load<boost::uint16_t>(is);
+	}
 	
 	if(i.version < INNO_VERSION(4, 2, 2)) {
 		codepage = default_codepage_for_language(language_id);
@@ -158,10 +179,10 @@ void language_entry::load(std::istream & is, const info & i) {
 		if(!codepage) {
 			codepage = util::cp_windows1252;
 		}
+	} else if(i.version < INNO_VERSION(5, 3, 0)) {
+		(void)util::load<boost::uint32_t>(is);
+		codepage = util::cp_utf16le;
 	} else {
-		if(i.version < INNO_VERSION(5, 3, 0)) {
-			(void)util::load<boost::uint32_t>(is);
-		}
 		codepage = util::cp_utf16le;
 	}
 	
@@ -178,10 +199,25 @@ void language_entry::load(std::istream & is, const info & i) {
 	} else {
 		dialog_font_standard_height = 0;
 	}
+
+	if(i.version >= INNO_VERSION(6, 6, 0)) {
+		dialog_font_scale_height = util::load<boost::uint32_t>(is);
+		dialog_font_scale_width = util::load<boost::uint32_t>(is);
+	} else {
+		dialog_font_scale_height = dialog_font_scale_width = 0;
+	}
 	
-	title_font_size = util::load<boost::uint32_t>(is);
+	if(i.version < INNO_VERSION(6, 6, 0)) {
+		title_font_size = util::load<boost::uint32_t>(is);
+	} else {
+		title_font_size = 0;
+	}
 	welcome_font_size = util::load<boost::uint32_t>(is);
-	copyright_font_size = util::load<boost::uint32_t>(is);
+	if(i.version < INNO_VERSION(6, 6, 0)) {
+		copyright_font_size = util::load<boost::uint32_t>(is);
+	} else {
+		copyright_font_size = 0;
+	}
 	
 	if(i.version == INNO_VERSION_EXT(5, 5, 7, 1)) {
 		util::load<boost::uint32_t>(is); // always 8 or 9?
