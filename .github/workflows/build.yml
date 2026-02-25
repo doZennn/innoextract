@@ -53,7 +53,7 @@ jobs:
     - name: Build boost
       run: |
         cd build
-        wget -q "https://boostorg.jfrog.io/artifactory/main/release/$BOOST_VERSION/source/boost_$BOOST_VER_UNDERSCORES.tar.gz"
+        wget -q "https://archives.boost.io/release/$BOOST_VERSION/source/boost_$BOOST_VER_UNDERSCORES.tar.gz"
         tar xzf "boost_$BOOST_VER_UNDERSCORES.tar.gz"
         rm boost_$BOOST_VER_UNDERSCORES.tar.gz
         cd "boost_$BOOST_VER_UNDERSCORES"
