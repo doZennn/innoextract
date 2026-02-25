@@ -140,13 +140,15 @@ void language_entry::load(std::istream & is, const info & i) {
 	}
 	
 	is >> util::binary_string(dialog_font);
-	if(i.version < INNO_VERSION(6, 6, 0)) {
+	// if(i.version < INNO_VERSION(6, 6, 0)) {
+	if(i.version <= INNO_VERSION(6, 6, 0)) {
 		is >> util::binary_string(title_font);
 	} else {
 		title_font.clear();
 	}
 	is >> util::binary_string(welcome_font);
-	if(i.version < INNO_VERSION(6, 6, 0)) {
+	// if(i.version < INNO_VERSION(6, 6, 0)) {
+	if(i.version <= INNO_VERSION(6, 6, 0)) {
 		is >> util::binary_string(copyright_font);
 	} else {
 		copyright_font.clear();
